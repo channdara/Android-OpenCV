@@ -127,6 +127,8 @@ class NIDEdgeDetectionActivity : AppCompatActivity(), ImageAnalysis.Analyzer {
                     }
                 }
             }
+        } else {
+            binding.overlayView.updateRectangle(emptyArray(), false)
         }
         optimized.release()
         grayMat.release()
