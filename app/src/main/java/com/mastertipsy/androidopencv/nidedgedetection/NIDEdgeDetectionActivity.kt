@@ -31,27 +31,35 @@ import com.mastertipsy.androidopencv.dpToPx
 import com.mastertipsy.androidopencv.setSystemUiVisibility
 import com.mastertipsy.androidopencv.updateInsetsPadding
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.opencv.android.OpenCVLoader
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 @Suppress("PrivatePropertyName")
 class NIDEdgeDetectionActivity : AppCompatActivity(), ImageAnalysis.Analyzer {
+    companion object {
+        fun open(context: Context) {
+            val intent = Intent(context, NIDEdgeDetectionActivity::class.java)
+            context.startActivity(intent)
+        }
+    }
+
     private val TAG: String = "NIDEdgeDetection"
+    private val isFrontCamera: Boolean = false
 
     private lateinit var binding: ActivityNidEdgeDetectionBinding
     private lateinit var pictureDirectory: File
     private lateinit var scaleType: PreviewView.ScaleType
+    private lateinit var imageOptimizer: ImageOptimizer
 
     private var cameraProvider: ProcessCameraProvider? = null
     private var preview: Preview? = null
@@ -82,12 +90,14 @@ class NIDEdgeDetectionActivity : AppCompatActivity(), ImageAnalysis.Analyzer {
         scaleType = binding.previewView.scaleType
 
         OpenCVLoader.initLocal()
+        imageOptimizer = ImageOptimizer()
         checkAndRequestCameraPermission()
         getPictureDirectory()
         setupListener()
     }
 
     override fun onDestroy() {
+        imageOptimizer.release()
         cameraProvider?.unbindAll()
         cameraProvider = null
         captureJob?.cancel()
@@ -102,7 +112,7 @@ class NIDEdgeDetectionActivity : AppCompatActivity(), ImageAnalysis.Analyzer {
         val image = imageProxy.image ?: return imageProxy.close()
         if (image.format != ImageFormat.YUV_420_888) return imageProxy.close()
         val grayMat = imageToGrayMat(imageProxy)
-        val optimized = optimizeGrayMatForContour(grayMat)
+        val optimized = imageOptimizer.optimizeGrayMatForContour(grayMat)
         val (contour, validSize) = findBiggestContour(optimized)
         if (contour != null) {
             val computed = computeTransformParams(grayMat, binding.previewView, scaleType)
@@ -190,9 +200,8 @@ class NIDEdgeDetectionActivity : AppCompatActivity(), ImageAnalysis.Analyzer {
     private fun analyzeUriForCropping(uri: Uri?) {
         try {
             if (uri == null) return cancelJobAndResume()
-            val colorMat = uriToColorMat(uri, contentResolver)
-            val grayMat = colorMatToGrayMat(colorMat)
-            val optimized = optimizeGrayMatForContour(grayMat)
+            val (grayMat, colorMat) = convertUriToMats(contentResolver, uri)
+            val optimized = imageOptimizer.optimizeGrayMatForContour(grayMat)
             val (contour, validSize, horizontal) = findBiggestContour(optimized)
             if (contour != null && validSize) {
                 val cropped = cropIdCardWithPadding(colorMat, contour, horizontal)
@@ -200,17 +209,12 @@ class NIDEdgeDetectionActivity : AppCompatActivity(), ImageAnalysis.Analyzer {
                     val bitmap = matToBitmap(cropped)
                     lifecycleScope.launch {
                         copyImageBitmapToAppPictures(bitmap)?.let { saved ->
-                            Log.i(TAG, "Cropped Image: ${saved.path}")
                             showImagePreviewDialog(saved)
                         }
                     }
                     cropped.release()
                 }
             } else {
-                Log.i(
-                    TAG,
-                    "If it reaches here that mean the analyze section above cannot detect NID edge. Using the uri to show or pass to uCrop or other library for manual crop."
-                )
                 showImagePreviewDialog(uri)
             }
             contour?.release()
@@ -229,103 +233,100 @@ class NIDEdgeDetectionActivity : AppCompatActivity(), ImageAnalysis.Analyzer {
         onImageSaved: (Uri) -> Unit,
     ): Job = lifecycleScope.launch {
         delay(delay)
+        var imageProxy: ImageProxy? = null
         try {
-            val imageProxy = imageCapture.takePictureSuspend(pauseCam)
-            val captured = withContext(Dispatchers.IO) {
+            imageProxy = imageCapture.takePictureSuspend(pauseCam)
+            val savedUri = withContext(Dispatchers.IO) {
                 val photoFile = File(pictureDirectory, "${System.currentTimeMillis()}.jpg")
-                val rotationDegrees = imageProxy.imageInfo.rotationDegrees
                 val bitmap = imageProxy.toBitmap()
-                val rotated = applyRotation(bitmap, rotationDegrees, false)
+                val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+                val rotated = applyRotation(bitmap, rotationDegrees, isFrontCamera)
+                if (rotated !== bitmap) bitmap.recycle()
                 val scaled = scaleToFit(rotated)
-                val outputStream = ByteArrayOutputStream()
-                scaled.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
-                val jpegBytes = outputStream.toByteArray()
+                if (scaled !== rotated) rotated.recycle()
                 FileOutputStream(photoFile).use { fos ->
-                    fos.write(jpegBytes)
+                    val success = scaled.compress(Bitmap.CompressFormat.JPEG, 95, fos)
+                    if (!success) throw IllegalStateException("Compression failed")
+                    fos.flush()
                     fos.fd.sync()
                 }
                 applyNormalExif(photoFile)
-                if (!scaled.isRecycled) scaled.recycle()
-                if (!rotated.isRecycled) rotated.recycle()
-                if (!bitmap.isRecycled) bitmap.recycle()
-                imageProxy.close()
+                scaled.recycle()
                 photoFile.toUri()
             }
-            onImageSaved(captured)
+            onImageSaved(savedUri)
         } catch (exception: Exception) {
             resumeCamera()
             Log.e(TAG, "captureAndCompressImageFromCamera", exception)
+        } finally {
+            imageProxy?.close()
         }
     }
 
+    @kotlin.OptIn(ExperimentalCoroutinesApi::class)
     private suspend fun ImageCapture.takePictureSuspend(pauseCam: Boolean): ImageProxy {
-        return suspendCancellableCoroutine { block ->
-            try {
-                takePicture(
-                    ContextCompat.getMainExecutor(this@NIDEdgeDetectionActivity),
-                    object : ImageCapture.OnImageCapturedCallback() {
-                        override fun onCaptureSuccess(imageProxy: ImageProxy) {
-                            if (!block.isCompleted) {
-                                if (pauseCam) pauseCamera()
-                                block.resume(imageProxy)
+        return suspendCancellableCoroutine { continuation ->
+            takePicture(
+                ContextCompat.getMainExecutor(this@NIDEdgeDetectionActivity),
+                object : ImageCapture.OnImageCapturedCallback() {
+                    override fun onCaptureSuccess(imageProxy: ImageProxy) {
+                        if (continuation.isActive) {
+                            if (pauseCam) pauseCamera()
+                            continuation.resume(imageProxy) {
+                                imageProxy.close()
                             }
+                        } else {
+                            imageProxy.close()
                         }
+                    }
 
-                        override fun onError(exception: ImageCaptureException) {
-                            if (!block.isCompleted) block.resumeWithException(exception)
-                            Log.e(TAG, "takePictureSuspend.onError", exception)
+                    override fun onError(exception: ImageCaptureException) {
+                        if (continuation.isActive) {
+                            continuation.resumeWithException(exception)
                         }
-                    },
-                )
-            } catch (exception: Exception) {
-                if (!block.isCompleted) block.resumeWithException(exception)
-                Log.e(TAG, "takePictureSuspend", exception)
-            }
-            block.invokeOnCancellation { }
+                    }
+                }
+            )
+            continuation.invokeOnCancellation { }
         }
     }
 
     private suspend fun copyImageBitmapToAppPictures(source: Bitmap): Uri? {
         return withContext(Dispatchers.IO) {
-            val outFile = File(pictureDirectory, "${System.currentTimeMillis()}.jpg")
+            val fileName = "${System.currentTimeMillis()}.jpg"
+            val outFile = File(pictureDirectory, fileName)
             try {
                 FileOutputStream(outFile).use { fos ->
-                    if (!source.compress(
-                            Bitmap.CompressFormat.JPEG,
-                            100,
-                            fos
-                        )
-                    ) throw IllegalStateException("Bitmap compress failed")
+                    val success = source.compress(Bitmap.CompressFormat.JPEG, 95, fos)
+                    if (!success) throw IllegalStateException("Bitmap compression failed")
+                    fos.flush()
                     fos.fd.sync()
                 }
                 try {
-                    val exif = ExifInterface(outFile.absolutePath)
-                    exif.setAttribute(
-                        ExifInterface.TAG_ORIENTATION,
-                        ExifInterface.ORIENTATION_NORMAL.toString()
-                    )
-                    exif.saveAttributes()
-                } catch (exception: Exception) {
-                    Log.e(TAG, "copyImageBitmapToAppPictures", exception)
+                    ExifInterface(outFile.absolutePath).apply {
+                        setAttribute(
+                            ExifInterface.TAG_ORIENTATION,
+                            ExifInterface.ORIENTATION_NORMAL.toString()
+                        )
+                        saveAttributes()
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to set EXIF orientation", e)
                 }
                 outFile.toUri()
-            } catch (exception: Exception) {
-                outFile.delete()
-                Log.e(TAG, "copyImageBitmapToAppPictures", exception)
-                return@withContext null
+            } catch (e: Exception) {
+                if (outFile.exists()) outFile.delete()
+                Log.e(TAG, "Error saving image to app pictures", e)
+                null
             }
         }
     }
 
     private fun showImagePreviewDialog(source: Uri) {
-        val dialog = ImagePreviewDialog(source) { cancelJobAndResume() }
-        dialog.show(supportFragmentManager, TAG)
-    }
-
-    companion object {
-        fun open(context: Context) {
-            val intent = Intent(context, NIDEdgeDetectionActivity::class.java)
-            context.startActivity(intent)
+        val dialog = ImagePreviewDialog(source) {
+            cancelJobAndResume()
+            binding.overlayView.updateRectangle(emptyArray(), false)
         }
+        dialog.show(supportFragmentManager, TAG)
     }
 }

@@ -22,6 +22,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AndroidOpenCV">
         <activity
+            android:name=".opencv.OpenCVActivity"
+            android:exported="false" />
+        <activity
             android:name=".nidedgedetection.NIDEdgeDetectionActivity"
             android:exported="false"
             android:hardwareAccelerated="true"
