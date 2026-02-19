@@ -23,7 +23,9 @@
         android:theme="@style/Theme.AndroidOpenCV">
         <activity
             android:name=".opencv.OpenCVActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:hardwareAccelerated="true"
+            android:screenOrientation="portrait" />
         <activity
             android:name=".nidedgedetection.NIDEdgeDetectionActivity"
             android:exported="false"
