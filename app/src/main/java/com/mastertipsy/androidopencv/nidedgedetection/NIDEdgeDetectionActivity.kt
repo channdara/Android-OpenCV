@@ -26,6 +26,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.lifecycleScope
+import com.googlecode.tesseract.android.TessBaseAPI
 import com.mastertipsy.androidopencv.databinding.ActivityNidEdgeDetectionBinding
 import com.mastertipsy.androidopencv.dpToPx
 import com.mastertipsy.androidopencv.setSystemUiVisibility
@@ -66,6 +67,7 @@ class NIDEdgeDetectionActivity : AppCompatActivity(), ImageAnalysis.Analyzer {
     private var captureJob: Job? = null
 
     private val cameraExecutors: ExecutorService by lazy { Executors.newFixedThreadPool(2) }
+    private val tess: TessBaseAPI by lazy { TessBaseAPI() }
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) binding.previewView.post { createCamera() }
@@ -91,6 +93,10 @@ class NIDEdgeDetectionActivity : AppCompatActivity(), ImageAnalysis.Analyzer {
 
         OpenCVLoader.initLocal()
         imageOptimizer = ImageOptimizer()
+
+        val dataPath = File(filesDir, "tesseract").absolutePath
+        if (!tess.init(dataPath, "eng+khm")) tess.recycle()
+
         checkAndRequestCameraPermission()
         getPictureDirectory()
         setupListener()
@@ -104,6 +110,7 @@ class NIDEdgeDetectionActivity : AppCompatActivity(), ImageAnalysis.Analyzer {
         captureJob = null
         cameraExecutors.shutdown()
         imageAnalysis.clearAnalyzer()
+        tess.recycle()
         super.onDestroy()
     }
 
@@ -209,9 +216,10 @@ class NIDEdgeDetectionActivity : AppCompatActivity(), ImageAnalysis.Analyzer {
                 val cropped = cropIdCardWithPadding(colorMat, contour, horizontal)
                 if (cropped != null) {
                     val bitmap = matToBitmap(cropped)
+                    tess.setImage(bitmap)
                     lifecycleScope.launch {
                         copyImageBitmapToAppPictures(bitmap)?.let { saved ->
-                            showImagePreviewDialog(saved)
+                            showImagePreviewDialog(saved, tess.utF8Text)
                         }
                     }
                     cropped.release()
@@ -324,8 +332,8 @@ class NIDEdgeDetectionActivity : AppCompatActivity(), ImageAnalysis.Analyzer {
         }
     }
 
-    private fun showImagePreviewDialog(source: Uri) {
-        val dialog = ImagePreviewDialog(source) {
+    private fun showImagePreviewDialog(source: Uri, content: String? = null) {
+        val dialog = ImagePreviewDialog(source, content) {
             cancelJobAndResume()
             binding.overlayView.updateRectangle(emptyArray(), false)
         }

@@ -8,6 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.graphics.drawable.toDrawable
+import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import com.mastertipsy.androidopencv.R
 import com.mastertipsy.androidopencv.databinding.DialogImagePreviewBinding
@@ -15,7 +16,8 @@ import com.mastertipsy.androidopencv.updateInsetsPadding
 
 class ImagePreviewDialog(
     private val source: Uri,
-    private val onClose: () -> Unit,
+    private val content: String? = null,
+    private val onClose: (() -> Unit)? = null,
 ) : DialogFragment() {
     private lateinit var binding: DialogImagePreviewBinding
 
@@ -35,10 +37,12 @@ class ImagePreviewDialog(
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.imageView.setImageURI(source)
+        binding.textView.isVisible = !content.isNullOrEmpty()
+        content?.let { binding.textView.text = it }
     }
 
     override fun onDismiss(dialog: DialogInterface) {
         super.onDismiss(dialog)
-        onClose()
+        onClose?.invoke()
     }
 }

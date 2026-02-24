@@ -59,4 +59,8 @@ dependencies {
     // OpenCV library
     // MVN: https://mvnrepository.com/artifact/org.opencv/opencv
     implementation("org.opencv:opencv:4.13.0")
+
+    // Tesseract4Android
+    // JitPack: https://jitpack.io/#cz.adaptech/tesseract4android
+    implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
 }
