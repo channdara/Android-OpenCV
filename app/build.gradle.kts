@@ -44,7 +44,7 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
 
     // Camera library (version 1.4.2 is the last version that support minSdk 21)
-    // MVN: https://mvnrepository.com/artifact/androidx.camera/camera-camera2
+    // Source: https://mvnrepository.com/artifact/androidx.camera/camera-camera2
     val cameraVersion = "1.4.2"
     implementation("androidx.camera:camera-core:$cameraVersion")
     implementation("androidx.camera:camera-view:$cameraVersion")
@@ -53,14 +53,18 @@ dependencies {
     implementation("androidx.camera:camera-extensions:$cameraVersion")
 
     // ExifInterface library
-    // MVN: https://mvnrepository.com/artifact/androidx.exifinterface/exifinterface
+    // Source: https://mvnrepository.com/artifact/androidx.exifinterface/exifinterface
     implementation("androidx.exifinterface:exifinterface:1.4.2")
 
     // OpenCV library
-    // MVN: https://mvnrepository.com/artifact/org.opencv/opencv
+    // Source: https://mvnrepository.com/artifact/org.opencv/opencv
     implementation("org.opencv:opencv:4.13.0")
 
     // Tesseract4Android
-    // JitPack: https://jitpack.io/#cz.adaptech/tesseract4android
+    // Source: https://jitpack.io/#cz.adaptech/tesseract4android
     implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
+
+    // TensorFlow Lite
+    // Source: https://mvnrepository.com/artifact/org.tensorflow/tensorflow-lite
+    implementation("org.tensorflow:tensorflow-lite:2.17.0")
 }

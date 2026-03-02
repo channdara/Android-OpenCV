@@ -22,6 +22,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AndroidOpenCV">
         <activity
+            android:name=".faceembedding.FaceVectorEmbeddingActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
             android:name=".opencv.OpenCVActivity"
             android:exported="false"
             android:hardwareAccelerated="true"

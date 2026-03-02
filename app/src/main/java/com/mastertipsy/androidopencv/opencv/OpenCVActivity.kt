@@ -17,16 +17,15 @@ import org.opencv.android.CameraBridgeViewBase
 import org.opencv.android.OpenCVLoader
 import org.opencv.core.Mat
 
-@Suppress("PrivatePropertyName")
 class OpenCVActivity : CameraActivity(), CameraBridgeViewBase.CvCameraViewListener2 {
     companion object {
+        private const val TAG: String = "OpenCVActivity"
+
         fun open(context: Context) {
             val intent = Intent(context, OpenCVActivity::class.java)
             context.startActivity(intent)
         }
     }
-
-    private val TAG: String = "OpenCVActivity"
 
     private lateinit var binding: ActivityOpenCvBinding
     private lateinit var imageOptimizer: ImageOptimizer

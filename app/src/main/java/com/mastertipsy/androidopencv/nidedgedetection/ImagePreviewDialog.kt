@@ -1,6 +1,7 @@
 package com.mastertipsy.androidopencv.nidedgedetection
 
 import android.content.DialogInterface
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
@@ -15,7 +16,7 @@ import com.mastertipsy.androidopencv.databinding.DialogImagePreviewBinding
 import com.mastertipsy.androidopencv.updateInsetsPadding
 
 class ImagePreviewDialog(
-    private val source: Uri,
+    private val source: Any,
     private val content: String? = null,
     private val onClose: (() -> Unit)? = null,
 ) : DialogFragment() {
@@ -36,7 +37,8 @@ class ImagePreviewDialog(
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.imageView.setImageURI(source)
+        if (source is Uri) binding.imageView.setImageURI(source)
+        if (source is Bitmap) binding.imageView.setImageBitmap(source)
         binding.textView.isVisible = !content.isNullOrEmpty()
         content?.let { binding.textView.text = it }
     }

@@ -114,7 +114,7 @@ fun imageToColorMat(imageProxy: ImageProxy, closeImageProxy: Boolean = true): Ma
 fun convertUriToMats(
     contentResolver: ContentResolver,
     uri: Uri,
-    maxSide: Int = 1080,
+    maxSize: Int = 1080,
 ): Pair<Mat, Mat> {
     val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
@@ -125,7 +125,7 @@ fun convertUriToMats(
         )
     } ?: ExifInterface.ORIENTATION_NORMAL
     options.inJustDecodeBounds = false
-    options.inSampleSize = calculateInSampleSize(options, maxSide, maxSide)
+    options.inSampleSize = calculateInSampleSize(options, maxSize, maxSize)
     val bitmap =
         contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
             ?: throw IllegalArgumentException("Could not decode image")

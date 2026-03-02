@@ -23,4 +23,12 @@
         android:layout_marginTop="16dp"
         android:text="Original OpenCV" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/buttonFaceEmbedding"
+        style="@style/AppButtonStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Extract Face 512 Embedding" />
+
 </androidx.appcompat.widget.LinearLayoutCompat>

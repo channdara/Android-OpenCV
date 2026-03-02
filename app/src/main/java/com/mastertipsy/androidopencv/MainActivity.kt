@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import com.mastertipsy.androidopencv.databinding.ActivityMainBinding
+import com.mastertipsy.androidopencv.faceembedding.FaceVectorEmbeddingActivity
 import com.mastertipsy.androidopencv.nidedgedetection.NIDEdgeDetectionActivity
 import com.mastertipsy.androidopencv.opencv.OpenCVActivity
 import java.io.File
@@ -26,6 +27,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupListener() = binding.apply {
         buttonNID.setOnClickListener { NIDEdgeDetectionActivity.open(this@MainActivity) }
         buttonOpenCV.setOnClickListener { OpenCVActivity.open(this@MainActivity) }
+        buttonFaceEmbedding.setOnClickListener { FaceVectorEmbeddingActivity.open(this@MainActivity) }
     }
 
     private fun copyTesseractFiles() {

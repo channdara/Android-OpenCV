@@ -45,16 +45,16 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.coroutines.resumeWithException
 
-@Suppress("PrivatePropertyName")
 class NIDEdgeDetectionActivity : AppCompatActivity(), ImageAnalysis.Analyzer {
     companion object {
+        private const val TAG: String = "NIDEdgeDetection"
+
         fun open(context: Context) {
             val intent = Intent(context, NIDEdgeDetectionActivity::class.java)
             context.startActivity(intent)
         }
     }
 
-    private val TAG: String = "NIDEdgeDetection"
     private val isFrontCamera: Boolean = false
 
     private lateinit var binding: ActivityNidEdgeDetectionBinding
@@ -147,7 +147,7 @@ class NIDEdgeDetectionActivity : AppCompatActivity(), ImageAnalysis.Analyzer {
                 analyzeUriForCropping(uri)
             }
         }
-        switchView.setOnCheckedChangeListener { button, bool ->
+        switchView.setOnCheckedChangeListener { _, bool ->
             val type =
                 if (bool) PreviewView.ScaleType.FIT_CENTER else PreviewView.ScaleType.FILL_CENTER
             binding.previewView.scaleType = type
