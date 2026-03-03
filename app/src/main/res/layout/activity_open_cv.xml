@@ -33,7 +33,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_alignParentBottom="true"
-            android:text="With this, you will see how ImageOptimizer class do to each frame of the images for edge detection process"
+            android:text="With this, you will see how ImageOptimizer class do to the images for edge detection process"
             android:textAlignment="center"
             android:textColor="@android:color/white"
             android:textSize="16sp"

@@ -2,14 +2,11 @@ package com.mastertipsy.androidopencv.faceembedding
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.mastertipsy.androidopencv.databinding.ActivityFaceVectorEmbeddingBinding
-import com.mastertipsy.androidopencv.dpToPx
-import com.mastertipsy.androidopencv.nidedgedetection.ImagePreviewDialog
 import com.mastertipsy.androidopencv.nidedgedetection.matToBitmap
 import com.mastertipsy.androidopencv.setSystemUiVisibility
 import com.mastertipsy.androidopencv.updateInsetsPadding
@@ -37,10 +34,13 @@ class FaceVectorEmbeddingActivity : AppCompatActivity() {
             val face = detectFace(rgbMat, extractor?.faceCascade!!)
             if (face == null || face.empty()) return@registerForActivityResult
             val cropped = getPaddedSafeSquareCrop(rgbMat, face)
+            val faceCrop = matToBitmap(cropped)
+            binding.imageViewCropFace.setImageBitmap(faceCrop)
             val vector = extractor?.extractVector(cropped)
             if (vector.isNullOrEmpty()) return@registerForActivityResult
             binding.textViewEmbedding.text = vector.joinToString(", ")
-            showImagePreviewDialog(matToBitmap(cropped))
+            rgbMat.release()
+            cropped.release()
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,7 +48,7 @@ class FaceVectorEmbeddingActivity : AppCompatActivity() {
         window.setSystemUiVisibility()
         binding = ActivityFaceVectorEmbeddingBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        binding.main.updateInsetsPadding(extraTop = 16.dpToPx)
+        binding.main.updateInsetsPadding()
 
         OpenCVLoader.initLocal()
         extractor = FaceVectorExtractor(this)
@@ -62,11 +62,7 @@ class FaceVectorEmbeddingActivity : AppCompatActivity() {
         }
         buttonClearLogging.setOnClickListener {
             textViewEmbedding.text = ""
+            imageViewCropFace.setImageDrawable(null)
         }
-    }
-
-    private fun showImagePreviewDialog(source: Bitmap, content: String? = null) {
-        val dialog = ImagePreviewDialog(source, content) {}
-        dialog.show(supportFragmentManager, TAG)
     }
 }
